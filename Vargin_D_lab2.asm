@@ -18,22 +18,22 @@ flag        DB  0
 drive_name  DB  0
 timer       DB  0
 SIZE		DW	10
-BUFFER			DB	'1234567890'	; сообщение выводимое в окно
-warning     DB 'disk dudosed$'
-siz        Dw    $ - CS:warning
+BUFFER		DB	'1234567890'	; сообщение выводимое в окно
+warning     DB 'disk error$'
+siz			Dw    $ - CS:warning
 ;============================================================================
 new_09h proc far
 ;
     pushf
 	push    AX
      in      AL,60h      ; Введем scan-code
-	cmp al, 58h   ; Это скен-код <F12> 	
+	cmp al, 58h   		; Это скен-код <F12> 	
 	je hotkey ; Yes
-    pop     AX          ; No. Восстановим AX
+    pop     AX          ; иначе восстановим AX
 	popf
     jmp     dword ptr CS:[old_09h]  ; В системный обработчик без возврата
 hotkey:
-    sti                 ; Не будем мешать таймеру
+    sti                 
     in      AL,61h      ; Введем содержимое порта B
     or      AL,80h      ; Установим старший бит   ;10000000b
     out     61h,AL      ; и вернем в порт B.
@@ -41,7 +41,7 @@ hotkey:
     out     61h,AL      ; сбросив старший бит порта B.
 ;
 	pop ax
-;-------------------- Вывод окна средствами BIOS ---------------------------
+;----------------------------------------------- Вывод окна средствами BIOS
 	xor al, al
 	xor ah, ah
 	int 16h
@@ -88,26 +88,26 @@ new_21h endp
 ;============================================================================
 int_2Fh proc far
     cmp     AH,0C0h         ; Наш номер?
-    jne     Pass_2Fh        ; Нет, на выход
-    cmp     AL,00h          ; Подфункция проверки на повторную установку?
+    jne     Pass_2Fh        ; Нет. break
+    cmp     AL,00h          ; Подфункция проверки на повторную установку
     je      inst            ; Программа уже установлена
-    cmp     AL,01h          ; Подфункция выгрузки?
-    je      unins           ; Да, на выгрузку
-    jmp     short Pass_2Fh  ; Неизвестная подфункция - на выход
+    cmp     AL,01h          ; Подфункция выгрузки
+    je      unins           ; На выгрузку
+    jmp     short Pass_2Fh  ; иначе неизвестная подфункция. выход
 inst:
-    mov     AL,0FFh         ; Сообщим о невозможности повторной установки
+    mov     AL,0FFh         ; Сообщение о невозможности повторной установки
     iret
 Pass_2Fh:
     jmp dword PTR CS:[int_2Fh_vector]
 ;
-; -------------- Проверка - возможна ли выгрузка программы из памяти ? ------
+; -------------------- Проверка - возможна ли выгрузка программы из памяти ?
 unins:
     push    BX
     push    CX
     push    DX
     push    ES
 ;
-    mov     CX,CS   ; Пригодится для сравнения, т.к. с CS сравнивать нельзя
+    mov     CX,CS   ; для сравнения, т.к. с CS сравнивать нельзя
 	
     mov     AX,3509h    ; Проверить вектор 09h
     int     21h ; Функция 35h в AL - номер прерывания. Возврат-вектор в ES:BX
@@ -119,7 +119,7 @@ unins:
     cmp     BX, offset CS:new_09h
     jne     Not_remove
 	
-	mov     CX,CS   ; Пригодится для сравнения, т.к. с CS сравнивать нельзя
+	mov     CX,CS   ; для сравнения, т.к. с CS сравнивать нельзя
 	
     mov     AX,3521h    ; Проверить вектор 09h
     int     21h ; Функция 35h в AL - номер прерывания. Возврат-вектор в ES:BX
@@ -140,23 +140,23 @@ unins:
 ;
     cmp     BX, offset CS:int_2Fh
     jne     Not_remove
-; ---------------------- Выгрузка программы из памяти ---------------------
+; --------------------------------------------- Выгрузка программы из памяти
 ;
     push    DS
 ;
-    lds     DX, CS:old_09h   ; Эта команда эквивалентна следующим двум
+    lds     DX, CS:old_09h   ; Эта команда == следующим двум
 ;    mov     DX, word ptr old_09h
 ;    mov     DS, word ptr old_09h+2
     mov     AX,2509h        ; Заполнение вектора старым содержимым
     int     21h
 ;
-	lds     DX, CS:old_21h   ; Эта команда эквивалентна следующим двум
+	lds     DX, CS:old_21h   ; Эта команда == следующим двум
 ;    mov     DX, word ptr old_21h
 ;    mov     DS, word ptr old_21h+2
     mov     AX,2521h
     int     21h
 
-    lds     DX, CS:int_2Fh_vector   ; Эта команда эквивалентна следующим двум
+    lds     DX, CS:int_2Fh_vector   ; Эта команда == следующим двум
 ;    mov     DX, word ptr int_2Fh_vector
 ;    mov     DS, word ptr int_2Fh_vector+2
     mov     AX,252Fh
@@ -176,7 +176,7 @@ unins:
     mov     AL,0Fh          ; Признак успешной выгрузки
     jmp     short pop_ret
 Not_remove:
-    mov     AL,0F0h          ; Признак - выгружать нельзя
+    mov     AL,0F0h          ; Признак неправильной выгрузки
 pop_ret:
     pop     ES
     pop     DX
